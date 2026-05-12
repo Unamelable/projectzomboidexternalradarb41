@@ -1,6 +1,6 @@
 PZ Radar — Feature List
-**For pictures, scroll down.**
 =========================
+**For pictures, scroll down.**
 
 OVERVIEW
   External radar overlay for Project Zomboid. Reads game data from
