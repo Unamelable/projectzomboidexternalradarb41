@@ -78,11 +78,11 @@ External radar overlay for Project Zomboid. Reads game data from Zomboid save fi
 - Parse module headers for accurate duration estimation
 
 **CONFIGURATION**
-  • Auto-generated pz_radar.cfg on first launch
-  • Configurable paths for map data, save data, and game files
-  • Adjustable window size, zoom, refresh rate, colors, etc.
-  • Boolean, int, float, and string settings with type coercion
-  • LOCK_CONFIG mode: skip path prompts, hide console
+- Auto-generated pz_radar.cfg on first launch
+- Configurable paths for map data, save data, and game files
+- Adjustable window size, zoom, refresh rate, colors, etc.
+- Boolean, int, float, and string settings with type coercion
+- LOCK_CONFIG mode: skip path prompts, hide console
 
 **WINDOW MANAGEMENT**
 - Resizable window (drag edges to resize)
