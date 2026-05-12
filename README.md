@@ -3,18 +3,15 @@ PZ Radar — Feature List
 **For pictures, scroll down.**
 
 OVERVIEW
-  External radar overlay for Project Zomboid. Reads game data from
-  Zomboid save files and renders a live 2D map of the player's
-  surroundings: zombie positions, building layouts, cleared areas,
-  and a global heatmap.
+- External radar overlay for Project Zomboid. Reads game data from Zomboid save files and renders a live 2D map of the player's surroundings: zombie positions, building layouts, cleared areas, and a global heatmap.
 
 CORE DISPLAY
-  • Live 2D radar view (1000×1000 default, resizable + fullscreen)
-  • Real-time player position tracking with movement direction arrow
-  • Zombie positions rendered as colored dots by AI state
-  • Smooth zoom (scroll wheel) and pan (right-click drag)
-  • Lock-to-player mode (left-click to re-lock after panning)
-  • Idle pulse rings around player when standing still
+- Live 2D radar view (1000×1000 default, resizable + fullscreen)
+- Real-time player position tracking with movement direction arrow
+- Zombie positions rendered as colored dots by AI state
+- Smooth zoom (scroll wheel) and pan (right-click drag)
+- Lock-to-player mode (left-click to re-lock after panning)
+- Idle pulse rings around player when standing still
 
 ZOMBIE STATE COLORS
   • Red (CHASE), White-Red (ATTACK), Orange (ROAMING)
