@@ -100,7 +100,10 @@ SCROLL_TEXTS_CFG = ""
 
 def debug_print(msg):
     if DEBUG:
-        print(f"[PZ Radar {VERSION}] {msg}")
+        try:
+            print(f"[PZ Radar {VERSION}] {msg}")
+        except:
+            pass
 
 CFG_KEYS = {
     'LOCK_CONFIG': bool, 'DEBUG': bool, 'CLEAR_SOUND_VOLUME': float,
@@ -408,12 +411,17 @@ def _make_zoom_out_sound():
 
 import time
 
-# ── Chiptune Playlist System (hardcoded from TrackNames.txt) ────────────
+# -- Chiptune Playlist System (hardcoded from TrackNames.txt) ------------
 # Tracks are .B64 base64-encoded module files stored alongside this script.
-# pygame.mixer.music loads them via io.BytesIO — no raw .XM / .IT support needed.
-# When compiled to exe, they sit next to the .exe — still found automatically.
+# pygame.mixer.music loads them via io.BytesIO � no raw .XM / .IT support needed.
+# When compiled to exe, they sit next to the .exe � still found automatically.
 
-_MUSIC_DIR = os.path.dirname(os.path.abspath(__file__))
+def _app_dir():
+    if getattr(sys, 'frozen', False):
+        return getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(sys.executable)))
+    return os.path.dirname(os.path.abspath(__file__))
+
+_MUSIC_DIR = _app_dir()
 
 _TRACK_DB = [
     ("sickonmonday.B64",     "Sick on Monday - ELWOOD (Jussi Salmela) [20.04.1998]"),
@@ -423,7 +431,9 @@ _TRACK_DB = [
     ("butterflyflewaway.B64", "Butterfly Flew Away - Damac & Swallow"),
     ("undertheopensky.B64",  "Under the open sky - Falcon/Substance and Screw!Bolt [13.07.1996]"),
     ("tooold.B64",           "too old (final) - tj technoiZ [05.12.2004]"),
-    ("graf.B64",             "graff - from bigyo [24.07.2001]"),
+    ("allnightalone.B64",    "all night alone - argh [2000]"),
+    ("daysofold.B64",        "Days of Old - darkwold (Phill Torreele) [1995]"),
+    ("alongthehighway.B64",  "Along The Highway - Cooth [19/05/2002]"),
 ]
 
 _SONG_LIST = []               # list of (filepath, display_name) tuples
@@ -550,7 +560,15 @@ def _load_track(index):
         _SONG_NAME = "Error"
         _track_duration = 5.0
 
-def _next_track():
+def _next_track_sequential():
+    global _current_track_index
+    if not _SONG_LIST:
+        _current_track_index = -1
+        return
+    _current_track_index = (_current_track_index + 1) % len(_SONG_LIST)
+    _load_track(_current_track_index)
+
+def _next_track_random():
     _pick_random_track()
     _load_track(_current_track_index)
 
@@ -563,23 +581,23 @@ def _prev_track():
     _load_track(_current_track_index)
 
 def _check_track_ended():
-    """Auto-advance when the current track finishes."""
+    """Auto-advance when the current track finishes (random next)."""
     if not _SONG_LIST or _current_track_index < 0:
         return
-    # Don't auto-advance if muted — user explicitly stopped playback
+    # Don't auto-advance if muted � user explicitly stopped playback
     if MUSIC_VOLUME <= 0.01:
         return
     try:
         if pygame.mixer.music.get_busy():
             if time.time() - _music_start_time > _track_duration + 2.0:
-                _next_track()
+                _next_track_random()
             return
     except:
         pass
     _next_track()
 
 
-# ── Title color (smooth random) ────────────────────────────────────────
+# -- Title color (smooth random) ----------------------------------------
 
 _title_color_t = 0.0
 _title_color_src = (255, 255, 255)
@@ -616,7 +634,7 @@ def _init_background_music():
         _pick_random_track()
         _load_track(_current_track_index)
         return
-    # No B64 tracks found — still mark music as available but play nothing
+    # No B64 tracks found � still mark music as available but play nothing
     debug_print("No B64 tracks found in toconvert/. Music disabled.")
     _MUSIC_AVAILABLE = False
 
@@ -976,6 +994,14 @@ def revalidate_tracked_buildings(zombies, newly_cleared):
                 newly_cleared.append(bid)
                 debug_print(f"Building {bid} CLEARED! (zombies cleared)")
             TRACKED_BUILDINGS.discard(bid)
+
+def invalidate_zombie_touched_buildings(zombies):
+    """Remove buildings from CLEANED_BUILDINGS if zombies are inside them."""
+    for bid in list(CLEANED_BUILDINGS):
+        if has_zombies_in_building(bid, zombies):
+            CLEANED_BUILDINGS.discard(bid)
+            TRACKED_BUILDINGS.add(bid)
+            debug_print(f"Building {bid} re-contaminated by zombies!")
 
 def check_player_in_buildings(px, py, pz, zombies, now, force=False):
     """Check if player is in a room. Mark buildings clean per zombie presence."""
@@ -1658,11 +1684,12 @@ def main():
     # Initialize pygame early for loading screen & GUI dialogs
     pygame.init()
 
-    try:
-        import ctypes
-        ctypes.windll.kernel32.FreeConsole()
-    except:
-        pass
+    if not DEBUG:
+        try:
+            import ctypes
+            ctypes.windll.kernel32.FreeConsole()
+        except:
+            pass
 
     L_W, L_H = 820, 460
     screen = pygame.display.set_mode((L_W, L_H))
@@ -1767,7 +1794,8 @@ def main():
     zombies = []
     cell_counts = {}
 
-    display_mode = 0
+    show_heatmap = False
+    show_local_heatmap = False
 
     panning = False
     pan_start_mouse = (0,0)
@@ -1797,11 +1825,16 @@ def main():
                     running = False
 
                 elif event.key == pygame.K_v:
-                    next_mode = (display_mode + 1) % 3
-                    sound = _disable_sound if next_mode == 0 else _keypress_sound
+                    show_heatmap = not show_heatmap
+                    sound = _disable_sound if not show_heatmap else _keypress_sound
                     if sound:
                         sound.play()
-                    display_mode = next_mode
+
+                elif event.key == pygame.K_h:
+                    show_local_heatmap = not show_local_heatmap
+                    sound = _disable_sound if not show_local_heatmap else _keypress_sound
+                    if sound:
+                        sound.play()
 
                 elif event.key == pygame.K_b:
                     global SHOW_BUILDINGS
@@ -1886,7 +1919,7 @@ def main():
                         _keypress_sound.play()
 
                 elif event.key == pygame.K_RIGHT:
-                    _next_track()
+                    _next_track_sequential()
                     if _keypress_sound:
                         _keypress_sound.play()
 
@@ -2045,8 +2078,11 @@ def main():
                     _player_prev_pos = player_pos
                     px, py = player_pos
                     zombies_for_buildings = list(zombies)
+                    invalidate_zombie_touched_buildings(zombies_for_buildings)
                     newly_cleared = check_player_in_buildings(px, py, player_z, zombies_for_buildings, now)
+                    tracked_before = set(TRACKED_BUILDINGS)
                     revalidate_tracked_buildings(zombies_for_buildings, newly_cleared)
+                    combat_cleared = [bid for bid in newly_cleared if bid in tracked_before]
                     prev_count = len(CLEARED_CHUNKS)
                     update_cleared_chunks(px, py, zombies_for_buildings)
                     if len(CLEARED_CHUNKS) != prev_count:
@@ -2055,7 +2091,7 @@ def main():
                     if newly_cleared:
                         debug_print(f"Buildings cleared: {newly_cleared}")
                         save_cleaned_buildings()
-                        if _clear_sound:
+                        if _clear_sound and combat_cleared:
                             _clear_sound.play()
 
             purge_stale_checked_rooms(now)
@@ -2083,10 +2119,11 @@ def main():
 
         heatmap_lod = 1 if zoom <= LOD_ZOOM_THRESHOLD else 0
 
-        if display_mode == 2:
-            draw_cleared_chunks(screen, cam_x, cam_y, zoom, sw, sh)
-        elif display_mode == 1:
+        if show_heatmap:
             draw_global_chunks(screen, cam_x, cam_y, zoom, sw, sh, heatmap_lod)
+
+        if show_local_heatmap:
+            draw_cleared_chunks(screen, cam_x, cam_y, zoom, sw, sh)
 
         if SHOW_CELL_COUNTS and cell_counts:
             draw_cell_counts(screen, cell_counts, cam_x, cam_y, zoom, sw, sh, font_cells)
@@ -2142,12 +2179,13 @@ def main():
                 pygame.draw.circle(screen, (255, 255, 255), (sx, sy), 4)
                 pygame.draw.circle(screen, (0, 100, 100), (sx, sy), 4, 1)
 
-        mode_names = ["OFF", "HEAT", "CLEAR"]
         current_lod = LOD_CONFIG[heatmap_lod]
         lod_display = current_lod["name"]
+        hm_indicator = f"H: {'ON' if show_heatmap else 'OFF'}"
+        lm_indicator = f"L: {'ON' if show_local_heatmap else 'OFF'}"
 
         hud = (
-            f"M: {mode_names[display_mode]} | "
+            f"{hm_indicator} {lm_indicator} | "
             f"LOD: {lod_display} | "
             f"Zoom: {zoom:.2f}x | "
             f"Z: {len(zombies)} | "
@@ -2190,7 +2228,8 @@ def main():
         bldg_total = len(BUILDING_ROOMS)
         bldg_cleared = len(CLEANED_BUILDINGS)
         bldg_pct = int(bldg_cleared / max(bldg_total, 1) * 100)
-        status_line = f"Save: {save_label} | Buildings Clear: {bldg_cleared}/{bldg_total} ({bldg_pct}%)"
+        bldg_tracked = len(TRACKED_BUILDINGS)
+        status_line = f"Save: {save_label} | Buildings Clear: {bldg_cleared}/{bldg_total} ({bldg_pct}%) | Tracked: {bldg_tracked}"
         if status_line != _status_text:
             _status_text = status_line
             _status_surf = font_hud.render(status_line, True, (150, 220, 150))
@@ -2219,8 +2258,9 @@ def main():
 
             controls = [
                 ("F1",     "Toggle help",                              lambda: 3),
-                ("F2",     "Force re-check building at your feet",     lambda: 3),
-                ("V",     "Toggle heatmap / clear mode",               lambda: display_mode),
+                ("F2",     "Force-clear building at your feet",         lambda: 3),
+                ("V",     "Toggle static heatmap",                      lambda: 1 if show_heatmap else 0),
+                ("H",     "Toggle local heatmap",                      lambda: 1 if show_local_heatmap else 0),
                 ("B",     "Toggle building render",                    lambda: 1 if SHOW_BUILDINGS else 0),
                 ("G",     "Toggle chunk grid",                         lambda: 1 if SHOW_CHUNK_GRID else 0),
                 ("C",     "Toggle cell counts",                        lambda: 1 if SHOW_CELL_COUNTS else 0),
