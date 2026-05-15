@@ -3,6 +3,8 @@ PZ Radar — Feature List
 **For pictures, scroll down.**
 Created with workshop mod in mind: https://steamcommunity.com/sharedfiles/filedetails/?id=3724547671
 
+**DESCRIPTION IS NOT UPDATED! FOR CHANGES CHECK CHANGELOG**
+
 
 External radar overlay for Project Zomboid. Reads game data from Zomboid save files and renders a live 2D map of the player's surroundings: zombie positions, building layouts, cleared areas, and a global heatmap.
 
