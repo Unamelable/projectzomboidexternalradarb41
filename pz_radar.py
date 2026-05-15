@@ -589,12 +589,13 @@ def _check_track_ended():
         return
     try:
         if pygame.mixer.music.get_busy():
-            if time.time() - _music_start_time > _track_duration + 2.0:
+            # Safety fallback: only force-advance if track runs vastly past estimate
+            if time.time() - _music_start_time > _track_duration + 60.0:
                 _next_track_random()
             return
     except:
         pass
-    _next_track()
+    _next_track_random()
 
 
 # -- Title color (smooth random) ----------------------------------------
